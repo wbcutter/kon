@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Khu Vườn Hoa Sống Động</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #070b1a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    #gardenCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* Thanh điều khiển kính mờ tối giản ở đáy màn hình */
+    .toolbar-wrapper {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: calc(100vw - 24px);
+      transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(15, 22, 40, 0.52);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .toolbar.collapsed {
+      display: none;
+    }
+
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.18);
+      margin: 0 2px;
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      outline: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 13px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease, color 0.2s ease;
+      white-space: nowrap;
+      letter-spacing: 0.01em;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn.active {
+      background: rgba(255, 255, 255, 0.92);
+      color: #131c31;
+      font-weight: 600;
+      box-shadow: 0 2px 12px rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-wind {
+      background: linear-gradient(135deg, rgba(110, 215, 255, 0.25), rgba(140, 165, 255, 0.25));
+      border: 1px solid rgba(165, 230, 255, 0.28);
+    }
+
+    .btn-wind:hover {
+      background: linear-gradient(135deg, rgba(110, 215, 255, 0.4), rgba(140, 165, 255, 0.4));
+    }
+
+    .btn-icon-only {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 50%;
+      background: rgba(15, 22, 40, 0.56);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .btn-icon-only:hover {
+      background: rgba(30, 42, 70, 0.72);
+    }
+
+    .theme-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.22);
+      padding: 3px;
+      border-radius: 999px;
+    }
+
+    .theme-group .btn {
+      padding: 5px 11px;
+      font-size: 12.5px;
+      background: transparent;
+    }
+
+    .theme-group .btn:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.12);
+      transform: none;
+    }
+
+    /* Gợi ý nhỏ tự động mờ dần */
+    .hint-pill {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      padding: 7px 16px;
+      border-radius: 999px;
+      background: rgba(15, 22, 40, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 12.5px;
+      letter-spacing: 0.01em;
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 1.2s ease, transform 0.8s ease;
+      text-align: center;
+      white-space: nowrap;
+      max-width: calc(100vw - 28px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hint-pill.fade-out {
+      opacity: 0;
+      transform: translate(-50%, -8px);
+    }
+
+    @media (max-width: 680px) {
+      .toolbar {
+        border-radius: 20px;
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .divider {
+        display: none;
+      }
+      .btn {
+        font-size: 12px;
+        padding: 6px 10px;
+      }
+      .theme-group .btn {
+        font-size: 11.5px;
+        padding: 5px 9px;
+      }
+      .hint-pill {
+        font-size: 11.5px;
+        white-space: normal;
+        border-radius: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gardenCanvas"></canvas>
+
+  <div id="hintPill" class="hint-pill">
+    Chạm vào thảm cỏ để trồng thêm hoa • Vuốt nhẹ để tạo gió thổi bồ công anh
+  </div>
+
+  <div class="toolbar-wrapper">
+    <div id="toolbar" class="toolbar">
+      <button id="btnWind" class="btn btn-wind" title="Thổi một cơn gió qua khu vườn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/>
+        </svg>
+        <span>Thổi gió</span>
+      </button>
+
+      <div class="divider"></div>
+
+      <div class="theme-group" role="group" aria-label="Chế độ ánh sáng">
+        <button class="btn active" data-theme="moonlit">Đêm trăng</button>
+        <button class="btn" data-theme="golden">Chiều vàng</button>
+        <button class="btn" data-theme="morning">Ban mai</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <button id="btnRegrow" class="btn" title="Gieo trồng một khu vườn hoa mới">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22V12"/>
+          <path d="M12 12C12 7 7 4 3 5c0 4 3 7 9 7Z"/>
+          <path d="M12 12c0-5 5-8 9-7 0 4-3 7-9 7Z"/>
+        </svg>
+        <span>Gieo vườn mới</span>
+      </button>
+    </div>
+
+    <button id="btnToggleBar" class="btn btn-icon-only" title="Ẩn / Hiện bảng điều khiển" aria-label="Ẩn hoặc hiện bảng điều khiển">
+      <svg id="toggleIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ============================================================================
+  // KHỞI TẠO CANVAS & CẤU HÌNH CHUNG
+  // ============================================================================
+  const canvas = document.getElementById('gardenCanvas');
+  const ctx = canvas.getContext('2d');
+
+  let W = window.innerWidth;
+  let H = window.innerHeight;
+  let DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+  // Thời gian toàn cục
+  let time = 0;
+  let lastTimestamp = 0;
+
+  // Hệ thống gió toàn cục & gió cục bộ từ chuột/cảm ứng
+  const windState = {
+    base: 0,
+    gust: 0,
+    gustTarget: 0,
+    nextNaturalGust: 5.5,
+    ribbons: []
+  };
+
+  const pointer = {
+    x: -9999,
+    y: -9999,
+    vx: 0,
+    vy: 0,
+    isDown: false,
+    dragDistance: 0,
+    lastX: 0,
+    lastY: 0,
+    activeStrength: 0
+  };
+
+  // ============================================================================
+  // BẢNG MÀU 3 CHẾ ĐỘ ÁNH SÁNG (ĐÊM TRĂNG / CHIỀU VÀNG / BAN MAI)
+  // ============================================================================
+  const THEMES = {
+    moonlit: {
+      name: 'Đêm trăng',
+      sky: ['#050918', '#0d1936', '#1a2a54', '#263963'],
+      celestial: { type: 'moon', x: 0.78, y: 0.18, r: 36, color: '#fff8de', glow: 'rgba(180, 215, 255, 0.28)' },
+      starsAlpha: 0.9,
+      mistColor: 'rgba(85, 130, 195, 0.14)',
+      hills: ['#0e1c33', '#102433', '#0e2829'],
+      groundGrad: ['#0c2320', '#071714', '#040d0b'],
+      grassBack: ['#133a2c', '#194a36', '#1f593e'],
+      grassMid: ['#1b5237', '#246642', '#2d7a4c'],
+      grassFront: ['#16442c', '#205c38', '#2a7343'],
+      petalGlow: 14,
+      ambientLight: 1.0,
+      moteColor: '#d9ff8c',
+      moteCore: '#ffffd6',
+      moteMode: 'firefly',
+      windRibbon: 'rgba(190, 230, 255, 0.24)'
+    },
+    golden: {
+      name: 'Chiều vàng',
+      sky: ['#2a1b4a', '#7c335e', '#d66853', '#f7b267'],
+      celestial: { type: 'sun', x: 0.25, y: 0.34, r: 46, color: '#fff3c4', glow: 'rgba(255, 178, 92, 0.42)' },
+      starsAlpha: 0.12,
+      mistColor: 'rgba(255, 185, 120, 0.22)',
+      hills: ['#4a2e46', '#3c343d', '#2b3a2e'],
+      groundGrad: ['#2a3d24', '#1b2b18', '#111c0f'],
+      grassBack: ['#334e26', '#42612b', '#527332'],
+      grassMid: ['#3b5e28', '#4c752f', '#628a37'],
+      grassFront: ['#29451d', '#3a5c24', '#4a702c'],
+      petalGlow: 8,
+      ambientLight: 1.04,
+      moteColor: '#ffe08a',
+      moteCore: '#fff9e6',
+      moteMode: 'pollen',
+      windRibbon: 'rgba(255, 235, 190, 0.28)'
+    },
+    morning: {
+      name: 'Ban mai',
+      sky: ['#5c89c9', '#8cb9e5', '#cbe2f5', '#fcebd5'],
+      celestial: { type: 'sun', x: 0.72, y: 0.24, r: 38, color: '#fffdf0', glow: 'rgba(255, 240, 195, 0.48)' },
+      starsAlpha: 0,
+      mistColor: 'rgba(240, 248, 255, 0.36)',
+      hills: ['#688fa3', '#52807a', '#3d725b'],
+      groundGrad: ['#326b44', '#225232', '#163822'],
+      grassBack: ['#3f7f4f', '#4d9259', '#5ca664'],
+      grassMid: ['#357543', '#448c50', '#58a35e'],
+      grassFront: ['#275c34', '#337340', '#428a4d'],
+      petalGlow: 4,
+      ambientLight: 1.08,
+      moteColor: '#ffffff',
+      moteCore: '#fffbe0',
+      moteMode: 'dew',
+      windRibbon: 'rgba(255, 255, 255, 0.34)'
+    }
+  };
+
+  let currentThemeKey = 'moonlit';
+  let theme = THEMES[currentThemeKey];
+
+  // ============================================================================
+  // HÀM TOÁN HỌC & EASING
+  // ============================================================================
+  const rand = (min, max) => min + Math.random() * (max - min);
+  const randInt = (min, max) => Math.floor(rand(min, max + 1));
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  }
+
+  function easeOutBack(t) {
+    const x = clamp(t, 0, 1);
+    const c1 = 1.70158;
+    const c3 = c1 + 1;
+    return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+  }
+
+  function quadBezier(p0, p1, p2, t) {
+    const mt = 1 - t;
+    return mt * mt * p0 + 2 * mt * t * p1 + t * t * p2;
+  }
+
+  function quadBezierTangent(p0, p1, p2, t) {
+    return 2 * (1 - t) * (p1 - p0) + 2 * t * (p2 - p1);
+  }
+
+  // Tính lực gió tại một vị trí (x, y) nhất định
+  function getWindAt(x, y) {
+    const wave1 = Math.sin(time * 1.15 + x * 0.0045) * 0.55;
+    const wave2 = Math.sin(time * 2.3 + x * 0.009 - y * 0.003) * 0.25;
+    let total = windState.base + wave1 + wave2 + windState.gust * (0.85 + 0.25 * Math.sin(x * 0.006 - time * 3.5));
+
+    // Gió cục bộ khi người dùng vuốt chuột
+    if (pointer.activeStrength > 0.01) {
+      const dx = x - pointer.x;
+      const dy = y - pointer.y;
+      const distSq = dx * dx + dy * dy;
+      const radius = 190;
+      if (distSq < radius * radius) {
+        const falloff = 1 - Math.sqrt(distSq) / radius;
+        total += clamp(pointer.vx * 0.16, -6, 6) * falloff * falloff * pointer.activeStrength;
+      }
+    }
+    return total;
+  }
+
+  // ============================================================================
+  // CÁC ĐỐI TƯỢNG NỀN: SAO, ĐOM ĐÓM/PHẤN HOA, CỎ, HOA DẠI NỀN, DẢI GIÓ
+  // ============================================================================
+  let stars = [];
+  let motes = [];
+  let grassLayers = { back: [], mid: [], front: [] };
+  let bgWildflowers = [];
+  let flowers = [];
+  let floatingSeeds = [];
+  let butterflies = [];
+  let plantRipples = [];
+
+  function initStars() {
+    stars = [];
+    const count = Math.floor((W * H) / 14000);
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 0.56,
+        r: rand(0.5, 1.8),
+        phase: rand(0, Math.PI * 2),
+        speed: rand(1.2, 3.5)
+      });
+    }
+  }
+
+  function initMotes() {
+    motes = [];
+    const count = Math.min(70, Math.max(36, Math.floor(W / 24)));
+    for (let i = 0; i < count; i++) {
+      motes.push({
+        x: Math.random() * W,
+        y: rand(H * 0.15, H * 0.96),
+        r: rand(1.4, 3.4),
+        vx: rand(-10, 14),
+        vy: rand(-8, 6),
+        phase: rand(0, Math.PI * 2),
+        blinkSpeed: rand(1.4, 3.2),
+        depth: rand(0.4, 1)
+      });
+    }
+  }
+
+  function initGrassAndWildflowers() {
+    grassLayers = { back: [], mid: [], front: [] };
+    bgWildflowers = [];
+
+    const makeBlade = (layer, yMin, yMax, hMin, hMax, wMin, wMax) => {
+      return {
+        x: Math.random() * (W + 40) - 20,
+        y: rand(H * yMin, H * yMax),
+        height: rand(H * hMin, H * hMax),
+        width: rand(wMin, wMax),
+        lean: rand(-0.28, 0.28),
+        colorIdx: randInt(0, 2),
+        phase: rand(0, Math.PI * 2),
+        layer
+      };
+    };
+
+    const backCount = Math.min(180, Math.floor(W * 0.14));
+    const midCount = Math.min(200, Math.floor(W * 0.16));
+    const frontCount = Math.min(140, Math.floor(W * 0.11));
+
+    for (let i = 0; i < backCount; i++) grassLayers.back.push(makeBlade('back', 0.63, 0.78, 0.06, 0.13, 1.6, 3.2));
+    for (let i = 0; i < midCount; i++) grassLayers.mid.push(makeBlade('mid', 0.74, 0.90, 0.08, 0.16, 2.2, 4.2));
+    for (let i = 0; i < frontCount; i++) grassLayers.front.push(makeBlade('front', 0.90, 1.03, 0.08, 0.18, 2.8, 5.2));
+
+    // Nhánh hoa oải hương nhỏ & chấm hoa dại bokeh ở hậu cảnh để tạo cảm giác rừng hoa dày đặc
+    const wildCount = Math.min(95, Math.max(45, Math.floor(W / 18)));
+    const wildColors = ['#c9a0ff', '#ff9ec7', '#ffe285', '#9ee6ff', '#ffb596', '#e2c2ff'];
+    for (let i = 0; i < wildCount; i++) {
+      const isLavender = Math.random() < 0.45;
+      bgWildflowers.push({
+        x: Math.random() * W,
+        y: rand(H * 0.62, H * 0.80),
+        height: rand(H * 0.07, H * 0.16),
+        color: pick(wildColors),
+        isLavender,
+        budCount: randInt(4, 7),
+        phase: rand(0, Math.PI * 2),
+        size: rand(2.2, 4.8)
+      });
+    }
+  }
+
+  // Tạo dải gió mảnh lướt qua màn hình
+  function spawnWindRibbons(count = 4) {
+    for (let i = 0; i < count; i++) {
+      windState.ribbons.push({
+        x: rand(-W * 0.25, W * 0.15),
+        y: rand(H * 0.25, H * 0.82),
+        vx: rand(420, 660),
+        length: rand(140, 260),
+        amp: rand(10, 26),
+        freq: rand(0.015, 0.028),
+        phase: rand(0, Math.PI * 2),
+        life: 0,
+        maxLife: rand(1.4, 2.4)
+      });
+    }
+  }
+
+  function triggerWindGust(strength = 4.2) {
+    windState.gustTarget = Math.max(windState.gustTarget, strength);
+    spawnWindRibbons(strength > 3.5 ? 5 : 3);
+  }
+
+  // ============================================================================
+  // HẠT BỒ CÔNG ANH BAY TRONG GIÓ
+  // ============================================================================
+  class DandelionSeed {
+    constructor(x, y, angle, initialVx, initialVy, scale = 1) {
+      this.x = x;
+      this.y = y;
+      this.vx = initialVx + rand(25, 75);
+      this.vy = initialVy + rand(-35, 10);
+      this.angle = angle;
+      this.spin = rand(-1.2, 1.2);
+      this.scale = scale * rand(0.85, 1.15);
+      this.phase = rand(0, Math.PI * 2);
+      this.age = 0;
+      this.alpha = 1;
+      this.pappusRays = 9;
+    }
+
+    update(dt) {
+      this.age += dt;
+      const localWind = getWindAt(this.x, this.y);
+      const targetVx = 38 + localWind * 42 + Math.sin(this.age * 1.9 + this.phase) * 18;
+      const targetVy = -14 + Math.cos(this.age * 2.4 + this.phase) * 20 - Math.abs(localWind) * 4;
+
+      this.vx = lerp(this.vx, targetVx, dt * 2.2);
+      this.vy = lerp(this.vy, targetVy, dt * 2.0);
+
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+
+      // Hạt hơi nghiêng theo hướng gió nhưng phần dù luôn hướng lên trên nhẹ
+      const desiredAngle = clamp(this.vx * 0.004, -0.65, 0.65) + Math.sin(this.age * 3 + this.phase) * 0.16;
+      this.angle = lerp(this.angle, desiredAngle, dt * 3);
+
+      if (this.age > 11) {
+        this.alpha -= dt * 0.35;
+      }
+    }
+
+    isDead() {
+      return this.alpha <= 0 || this.x > W + 120 || this.x < -120 || this.y < -120 || this.y > H + 100;
+    }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.angle);
+      ctx.scale(this.scale, this.scale);
+      ctx.globalAlpha = clamp(this.alpha, 0, 1);
+
+      // Thân mảnh của hạt (beak)
+      ctx.strokeStyle = 'rgba(245, 250, 255, 0.78)';
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(0, 8);
+      ctx.lineTo(0, -6);
+      ctx.stroke();
+
+      // Hạt nhỏ màu nâu vàng ở đáy
+      ctx.fillStyle = '#c8a675';
+      ctx.beginPath();
+      ctx.ellipse(0, 9.5, 1.3, 2.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Chùm dù lông tơ trắng phát sáng nhẹ
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+      ctx.lineWidth = 0.65;
+      for (let i = 0; i < this.pappusRays; i++) {
+        const ratio = (i / (this.pappusRays - 1)) - 0.5;
+        const a = -Math.PI / 2 + ratio * 1.65;
+        const len = 7.5 + (1 - Math.abs(ratio) * 2) * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -6);
+        ctx.lineTo(Math.cos(a) * len, -6 + Math.sin(a) * len);
+        ctx.stroke();
+      }
+
+      // Quầng sáng mềm quanh chùm dù
+      const g = ctx.createRadialGradient(0, -10, 0.5, 0, -10, 9);
+      g.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+      g.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, -10, 9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // ============================================================================
+  // BẢNG MÀU CHO 5 LOÀI HOA
+  // ============================================================================
+  const TULIP_PALETTES = [
+    { outer: '#c9184a', mid: '#ff4d6d', inner: '#ff8fa3', highlight: '#ffd6e0' }, // Đỏ thắm
+    { outer: '#d9480f', mid: '#ff7b29', inner: '#ffb36b', highlight: '#ffe8c2' }, // Cam san hô
+    { outer: '#e09f00', mid: '#ffd000', inner: '#ffea61', highlight: '#fff9cc' }, // Vàng rực
+    { outer: '#b5179e', mid: '#f72585', inner: '#ff75b5', highlight: '#ffd6ec' }, // Hồng cánh sen
+    { outer: '#7209b7', mid: '#b5179e', inner: '#e07aff', highlight: '#f7d6ff' }  // Tím magenta hoàng gia
+  ];
+
+  const DAHLIA_PALETTES = [
+    { base: '#590d22', mid: '#a4133c', tip: '#ff758f', center: '#ffd166' }, // Đỏ rượu vang
+    { base: '#9e2a2b', mid: '#e05a47', tip: '#ffba92', center: '#fff3b0' }, // Cam đào hoàng hôn
+    { base: '#7b1fa2', mid: '#d81b60', tip: '#ff94c2', center: '#ffe082' }, // Hồng tím kem
+    { base: '#a61c5c', mid: '#ec407a', tip: '#fff0f5', center: '#ffd54f' }, // Hồng cánh kem
+    { base: '#b83b2a', mid: '#f48c06', tip: '#ffea80', center: '#fff8d6' }  // Cam rực rỡ
+  ];
+
+  const VIOLET_PALETTES = [
+    { upper: '#3c096c', side: '#5a189a', lower: '#7b2cbf', edge: '#c77dff', eye: '#ffd60a' }, // Tím thạch anh
+    { upper: '#240046', side: '#480ca8', lower: '#7209b7', edge: '#b892ff', eye: '#ffea00' }, // Tím chàm nhung
+    { upper: '#5e548e', side: '#9f86c0', lower: '#be95c4', edge: '#f3d5ff', eye: '#ffd166' }, // Tím oải hương
+    { upper: '#4a154b', side: '#8338ec', lower: '#ffbe0b', edge: '#fff3b0', eye: '#ff5400' }  // Violet hai màu
+  ];
+
+  // ============================================================================
+  // LỚP HOA CHÍNH (5 LOÀI: TULIP, BỒ CÔNG ANH, VIOLET, THƯỢC DƯỢC, SNOWDROP)
+  // ============================================================================
+  class Flower {
+    constructor(options) {
+      this.species = options.species;
+      this.x = options.x;
+      this.y = options.y; // Vị trí gốc cắm xuống đất
+      this.depth = options.depth; // 0 (xa) -> 1 (gần)
+      this.scale = (0.58 + this.depth * 0.56) * rand(0.9, 1.12);
+      this.startDelay = options.delay ?? rand(0, 3.2);
+
+      // Chiều cao thân theo từng loài
+      const heightFactors = {
+        tulip: rand(0.24, 0.35),
+        dandelion: rand(0.19, 0.29),
+        violet: rand(0.10, 0.17),
+        dahlia: rand(0.26, 0.38),
+        snowdrop: rand(0.13, 0.21)
+      };
+      this.stemHeight = H * heightFactors[this.species] * (0.68 + this.depth * 0.42);
+      this.curveDir = rand(-1, 1);
+      this.curveAmp = rand(12, 34) * this.scale;
+      this.windPhase = rand(0, Math.PI * 2);
+      this.windFlex = this.species === 'snowdrop' ? 1.25 : this.species === 'dahlia' ? 0.78 : 1.0;
+
+      // Trạng thái sinh trưởng
+      this.age = 0;
+      this.growth = 0; // 0 -> 1: mọc thân & lá
+      this.bloom = 0;  // 0 -> 1: nở hoa
+      this.growSpeed = rand(0.45, 0.68);
+      this.bloomSpeed = rand(0.55, 0.82);
+
+      // Tọa độ đầu hoa hiện tại (cập nhật mỗi frame để bướm đậu & hạt bay ra)
+      this.headX = this.x;
+      this.headY = this.y;
+      this.headAngle = -Math.PI / 2;
+
+      // Dữ liệu riêng cho từng loài
+      this.initSpeciesData();
+    }
+
+    initSpeciesData() {
+      if (this.species === 'tulip') {
+        this.palette = pick(TULIP_PALETTES);
+        this.leafSide = Math.random() < 0.5 ? 1 : -1;
+        this.leafCount = 2;
+      } else if (this.species === 'dahlia') {
+        this.palette = pick(DAHLIA_PALETTES);
+        this.petalCount = randInt(48, 62);
+        this.headRadius = rand(28, 36) * this.scale;
+        this.rotationOffset = rand(0, Math.PI * 2);
+      } else if (this.species === 'violet') {
+        this.palette = pick(VIOLET_PALETTES);
+        // Mỗi bụi violet có 2-3 bông nhỏ xinh
+        this.subBlooms = [];
+        const count = randInt(2, 3);
+        for (let i = 0; i < count; i++) {
+          this.subBlooms.push({
+            dx: (i - (count - 1) / 2) * rand(18, 28) * this.scale,
+            dy: rand(-14, 8) * this.scale,
+            tilt: rand(-0.32, 0.32),
+            size: rand(0.82, 1.08),
+            delayOffset: i * 0.28
+          });
+        }
+      } else if (this.species === 'snowdrop') {
+        this.droopDir = Math.random() < 0.5 ? 1 : -1;
+        this.subStems = Math.random() < 0.45 ? 2 : 1;
+      } else if (this.species === 'dandelion') {
+        // Bồ công anh: 3 giai đoạn (yellow -> transition -> puffball -> bare -> regrow)
+        this.dStage = 'yellow';
+        this.dTimer = 0;
+        this.yellowDuration = rand(4.5, 9.5);
+        this.transitionProgress = 0;
+        this.puffRadius = rand(21, 27) * this.scale;
+        this.seeds = [];
+        const seedCount = randInt(36, 44);
+        for (let i = 0; i < seedCount; i++) {
+          // Phân bố đều trên mặt cầu 2D bằng góc vàng
+          const ringRatio = Math.sqrt((i + 0.5) / seedCount);
+          const angle = i * 2.3999632 + rand(-0.08, 0.08);
+          this.seeds.push({
+            angle,
+            rRatio: ringRatio,
+            len: this.puffRadius * (0.72 + 0.32 * ringRatio),
+            attached: true,
+            looseness: rand(0.55, 1.45)
+          });
+        }
+        this.attachedCount = seedCount;
+      }
+    }
+
+    update(dt) {
+      this.age += dt;
+      if (this.age < this.startDelay) return;
+
+      // Mọc thân và lá
+      if (this.growth < 1) {
+        this.growth = Math.min(1, this.growth + dt * this.growSpeed);
+      }
+
+      // Khi thân đạt ~75%, bắt đầu bung nở hoa
+      if (this.growth > 0.72 && this.bloom < 1) {
+        this.bloom = Math.min(1, this.bloom + dt * this.bloomSpeed);
+      }
+
+      // Cập nhật vị trí đỉnh hoa theo gió
+      const g = easeOutCubic(this.growth);
+      const wind = getWindAt(this.x, this.y - this.stemHeight * 0.7);
+      const sway = wind * 15 * this.windFlex * this.scale * g;
+
+      const cpX = this.x + this.curveDir * this.curveAmp * g + sway * 0.45;
+      const cpY = this.y - this.stemHeight * 0.52 * g;
+      const tipX = this.x + this.curveDir * this.curveAmp * 0.65 * g + sway;
+      const tipY = this.y - this.stemHeight * g + Math.abs(sway) * 0.14;
+
+      this.cpX = cpX;
+      this.cpY = cpY;
+      this.headX = tipX;
+      this.headY = tipY;
+
+      const tx = quadBezierTangent(this.x, cpX, tipX, 1);
+      const ty = quadBezierTangent(this.y, cpY, tipY, 1);
+      this.headAngle = Math.atan2(ty, tx);
+
+      // Logic chuyển hóa 3 giai đoạn của Bồ công anh
+      if (this.species === 'dandelion' && this.bloom >= 0.99) {
+        this.updateDandelion(dt, wind);
+      }
+    }
+
+    updateDandelion(dt, wind) {
+      this.dTimer += dt;
+
+      if (this.dStage === 'yellow') {
+        if (this.dTimer >= this.yellowDuration) {
+          this.dStage = 'transition';
+          this.dTimer = 0;
+        }
+      } else if (this.dStage === 'transition') {
+        this.transitionProgress = Math.min(1, this.transitionProgress + dt * 0.55);
+        if (this.transitionProgress >= 1) {
+          this.dStage = 'puffball';
+          this.dTimer = 0;
+        }
+      } else if (this.dStage === 'puffball') {
+        // Kiểm tra lực gió toàn cục hoặc vuốt chuột gần hoa để hạt tách bay
+        const gustForce = Math.abs(windState.gust);
+        let pointerForce = 0;
+        if (pointer.activeStrength > 0.05) {
+          const d = Math.hypot(this.headX - pointer.x, this.headY - pointer.y);
+          if (d < 150) {
+            pointerForce = (1 - d / 150) * Math.hypot(pointer.vx, pointer.vy) * 0.08;
+          }
+        }
+
+        const totalDetachForce = gustForce * 0.85 + pointerForce * 1.4;
+        if (totalDetachForce > 1.05 && this.attachedCount > 0) {
+          for (let i = 0; i < this.seeds.length; i++) {
+            const s = this.seeds[i];
+            if (!s.attached) continue;
+            // Xác suất tách hạt tỷ lệ thuận với lực gió
+            const chance = (totalDetachForce - 0.9) * s.looseness * dt * 1.9;
+            if (Math.random() < chance) {
+              s.attached = false;
+              this.attachedCount--;
+              const sx = this.headX + Math.cos(s.angle) * s.len * 0.65;
+              const sy = this.headY + Math.sin(s.angle) * s.len * 0.65;
+              const dir = wind >= 0 ? 1 : -1;
+              floatingSeeds.push(new DandelionSeed(
+                sx,
+                sy,
+                s.angle + Math.PI / 2,
+                dir * rand(25, 65) + pointer.vx * 0.12,
+                rand(-35, 5) + pointer.vy * 0.08,
+                this.scale
+              ));
+            }
+          }
+        }
+
+        if (this.attachedCount === 0) {
+          this.dStage = 'bare';
+          this.dTimer = 0;
+        }
+      } else if (this.dStage === 'bare') {
+        // Sau vài giây đài hoa trống, mọc lại nụ hoa vàng mới
+        if (this.dTimer > 5.5) {
+          this.dStage = 'yellow';
+          this.dTimer = 0;
+          this.transitionProgress = 0;
+          this.bloom = 0.05;
+          this.attachedCount = this.seeds.length;
+          for (let i = 0; i < this.seeds.length; i++) {
+            this.seeds[i].attached = true;
+          }
+        }
+      }
+    }
+
+    draw(ctx) {
+      if (this.age < this.startDelay || this.growth <= 0.01) return;
+
+      ctx.save();
+      // Hiệu ứng chiều sâu nhẹ cho lớp xa
+      const depthAlpha = 0.78 + this.depth * 0.22;
+      ctx.globalAlpha = depthAlpha;
+
+      switch (this.species) {
+        case 'tulip':
+          this.drawTulip(ctx);
+          break;
+        case 'dandelion':
+          this.drawDandelion(ctx);
+          break;
+        case 'violet':
+          this.drawViolet(ctx);
+          break;
+        case 'dahlia':
+          this.drawDahlia(ctx);
+          break;
+        case 'snowdrop':
+          this.drawSnowdrop(ctx);
+          break;
+      }
+
+      ctx.restore();
+    }
+
+    // Vẽ thân cong Bezier chung
+    drawStem(ctx, x0, y0, cx, cy, x1, y1, width, colorBottom, colorTop) {
+      const grad = ctx.createLinearGradient(x0, y0, x1, y1);
+      grad.addColorStop(0, colorBottom);
+      grad.addColorStop(1, colorTop);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo(cx, cy, x1, y1);
+      ctx.stroke();
+    }
+
+    // ------------------------------------------------------------------------
+    // 1. HOA TULIP: Thân mượt, lá bẹ bản rộng, bông hình chuông 6 cánh có khối
+    // ------------------------------------------------------------------------
+    drawTulip(ctx) {
+      const g = easeOutCubic(this.growth);
+      const b = easeOutBack(this.bloom);
+
+      // Lá Tulip ôm thân (2 lá dài bản rộng uốn cong)
+      const leafGrow = clamp((this.growth - 0.15) / 0.7, 0, 1);
+      if (leafGrow > 0) {
+        for (let i = 0; i < 2; i++) {
+          const side = i === 0 ? this.leafSide : -this.leafSide;
+          const lh = this.stemHeight * (i === 0 ? 0.62 : 0.48) * easeOutCubic(leafGrow);
+          const lx = this.x + side * 4 * this.scale;
+          const ly = this.y - 2;
+          const windOffset = (this.headX - this.x) * 0.35;
+          const tipX = lx + side * (26 + i * 8) * this.scale + windOffset;
+          const tipY = ly - lh;
+
+          const grad = ctx.createLinearGradient(lx, ly, tipX, tipY);
+          grad.addColorStop(0, '#195432');
+          grad.addColorStop(0.55, '#2f824a');
+          grad.addColorStop(1, '#58b068');
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.moveTo(lx - side * 3 * this.scale, ly);
+          ctx.quadraticCurveTo(
+            lx + side * 24 * this.scale + windOffset * 0.4,
+            ly - lh * 0.55,
+            tipX,
+            tipY
+          );
+          ctx.quadraticCurveTo(
+            lx + side * 4 * this.scale + windOffset * 0.3,
+            ly - lh * 0.45,
+            lx + side * 3 * this.scale,
+            ly
+          );
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Thân Tulip
+      this.drawStem(ctx, this.x, this.y, this.cpX, this.cpY, this.headX, this.headY, 3.6 * this.scale, '#1f5e36', '#56a85c');
+
+      // Đầu bông hoa Tulip
+      if (this.bloom <= 0.01) return;
+      ctx.save();
+      ctx.translate(this.headX, this.headY);
+      ctx.rotate(this.headAngle + Math.PI / 2);
+
+      const s = this.scale * (0.25 + 0.75 * b);
+      const spread = 0.25 + 0.75 * easeOutCubic(this.bloom);
+      const pal = this.palette;
+
+      if (theme.petalGlow > 0) {
+        ctx.shadowColor = pal.mid;
+        ctx.shadowBlur = theme.petalGlow * this.depth;
+      }
+
+      const drawCupPetal = (rot, scaleX, scaleY, col1, col2, col3) => {
+        ctx.save();
+        ctx.rotate(rot);
+        const w = 13.5 * s * scaleX;
+        const h = 36 * s * scaleY;
+        const pg = ctx.createLinearGradient(0, 0, 0, -h);
+        pg.addColorStop(0, col1);
+        pg.addColorStop(0.55, col2);
+        pg.addColorStop(1, col3);
+        ctx.fillStyle = pg;
+        ctx.beginPath();
+        ctx.moveTo(0, 2 * s);
+        ctx.bezierCurveTo(-w * 1.25, -h * 0.22, -w * 1.05, -h * 0.85, 0, -h);
+        ctx.bezierCurveTo(w * 1.05, -h * 0.85, w * 1.25, -h * 0.22, 0, 2 * s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gân sáng mượt trên cánh hoa
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = 0.9 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, -2 * s);
+        ctx.quadraticCurveTo(0, -h * 0.5, 0, -h * 0.88);
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      // 3 cánh lớp sau (sâu hơn)
+      drawCupPetal(-0.34 * spread, 0.92, 0.94, pal.outer, pal.mid, pal.inner);
+      drawCupPetal(0.34 * spread, 0.92, 0.94, pal.outer, pal.mid, pal.inner);
+      drawCupPetal(0, 0.98, 1.02, pal.outer, pal.mid, pal.highlight);
+
+      // 3 cánh lớp trước (sáng và nổi khối)
+      drawCupPetal(-0.22 * spread, 0.96, 0.96, pal.outer, pal.mid, pal.highlight);
+      drawCupPetal(0.22 * spread, 0.96, 0.96, pal.outer, pal.mid, pal.highlight);
+      drawCupPetal(0, 0.88, 0.92, pal.mid, pal.inner, pal.highlight);
+
+      ctx.restore();
+    }
+
+    // ------------------------------------------------------------------------
+    // 2. BỒ CÔNG ANH: Lá răng cưa, Hoa vàng -> Chuyển cầu bông trắng -> Bay hạt
+    // ------------------------------------------------------------------------
+    drawDandelion(ctx) {
+      const leafGrow = easeOutCubic(clamp((this.growth - 0.1) / 0.65, 0, 1));
+      // Lá răng cưa đặc trưng mọc sát gốc
+      if (leafGrow > 0) {
+        for (let side = -1; side <= 1; side += 2) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.scale(side * this.scale * leafGrow, this.scale * leafGrow);
+          ctx.fillStyle = '#2d6e3a';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(10, -10);
+          ctx.lineTo(6, -13);
+          ctx.lineTo(18, -22);
+          ctx.lineTo(14, -24);
+          ctx.lineTo(27, -30);
+          ctx.lineTo(20, -16);
+          ctx.lineTo(22, -13);
+          ctx.lineTo(12, -5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // Thân bồ công anh thanh mảnh
+      this.drawStem(ctx, this.x, this.y, this.cpX, this.cpY, this.headX, this.headY, 2.5 * this.scale, '#2e6b38', '#70ad58');
+
+      if (this.bloom <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(this.headX, this.headY);
+
+      const b = easeOutBack(this.bloom);
+
+      // Đài hoa xanh nhỏ bên dưới
+      ctx.fillStyle = '#4c8c42';
+      ctx.beginPath();
+      ctx.arc(0, 3 * this.scale, 5.2 * this.scale * clamp(b, 0, 1), 0, Math.PI * 2);
+      ctx.fill();
+
+      // GIAI ĐOẠN 1 & CHUYỂN TIẾP: HOA VÀNG RỰC RỠ
+      const yellowAlpha = this.dStage === 'yellow' ? 1 : this.dStage === 'transition' ? 1 - this.transitionProgress : 0;
+      if (yellowAlpha > 0.01) {
+        ctx.save();
+        ctx.globalAlpha *= yellowAlpha;
+        const yr = 18 * this.scale * b * (1 - this.transitionProgress * 0.35);
+
+        if (theme.petalGlow > 0) {
+          ctx.shadowColor = '#ffd000';
+          ctx.shadowBlur = theme.petalGlow * 0.9 * this.depth;
+        }
+
+        // 3 lớp cánh tia mảnh vàng rực
+        const layers = [
+          { count: 24, len: yr * 1.05, width: 2.3 * this.scale, color: '#f59f00' },
+          { count: 20, len: yr * 0.85, width: 2.1 * this.scale, color: '#ffd000' },
+          { count: 14, len: yr * 0.58, width: 1.8 * this.scale, color: '#fff078' }
+        ];
+        for (let l = 0; l < layers.length; l++) {
+          const lay = layers[l];
+          ctx.fillStyle = lay.color;
+          for (let i = 0; i < lay.count; i++) {
+            const a = (i / lay.count) * Math.PI * 2 + l * 0.25;
+            ctx.save();
+            ctx.rotate(a);
+            ctx.beginPath();
+            ctx.moveTo(0, -lay.width * 0.45);
+            ctx.lineTo(lay.len, -lay.width * 0.3);
+            ctx.lineTo(lay.len + 2.2 * this.scale, 0);
+            ctx.lineTo(lay.len, lay.width * 0.3);
+            ctx.lineTo(0, lay.width * 0.45);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+
+        // Nhụy trung tâm màu vàng cam ấm
+        ctx.fillStyle = '#e67700';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.2 * this.scale * b, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // GIAI ĐOẠN 2 & 3: CẦU BÔNG TRẮNG XÙ (PUFFBALL) & ĐÀI TRỐNG
+      const puffAlpha = this.dStage === 'transition' ? easeOutCubic(this.transitionProgress) : (this.dStage === 'puffball' || this.dStage === 'bare') ? 1 : 0;
+      if (puffAlpha > 0.01) {
+        ctx.save();
+        ctx.globalAlpha *= puffAlpha;
+        const expand = this.dStage === 'transition' ? 0.35 + 0.65 * easeOutBack(this.transitionProgress) : 1;
+
+        // Quầng mờ trắng xù tổng thể tạo cảm giác bông mềm phát sáng
+        if (this.attachedCount > 0) {
+          const densityRatio = this.attachedCount / this.seeds.length;
+          const r = this.puffRadius * expand;
+          const halo = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.18);
+          halo.addColorStop(0, `rgba(255, 255, 255, ${0.26 * densityRatio})`);
+          halo.addColorStop(0.75, `rgba(235, 246, 255, ${0.18 * densityRatio})`);
+          halo.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          ctx.fillStyle = halo;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 1.18, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Đế hạt (receptacle) màu kem nhạt có chấm nhỏ
+        ctx.fillStyle = '#d9ccb4';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.2 * this.scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Vẽ từng hạt bông trắng còn bám trên cầu
+        for (let i = 0; i < this.seeds.length; i++) {
+          const s = this.seeds[i];
+          if (!s.attached) continue;
+          const len = s.len * expand;
+          const ex = Math.cos(s.angle) * len;
+          const ey = Math.sin(s.angle) * len;
+
+          // Cuống mảnh tỏa ra từ tâm
+          ctx.strokeStyle = 'rgba(245, 250, 255, 0.55)';
+          ctx.lineWidth = 0.75 * this.scale;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(s.angle) * 3.5 * this.scale, Math.sin(s.angle) * 3.5 * this.scale);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          // Chùm tơ trắng đầu hạt tạo viền bông xù tròn
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+          ctx.lineWidth = 0.65 * this.scale;
+          const fl = 4.6 * this.scale * expand;
+          for (let f = -2; f <= 2; f++) {
+            const fa = s.angle + f * 0.36;
+            ctx.beginPath();
+            ctx.moveTo(ex, ey);
+            ctx.lineTo(ex + Math.cos(fa) * fl, ey + Math.sin(fa) * fl);
+            ctx.stroke();
+          }
+
+          // Điểm sáng nhỏ ở đầu tơ
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.beginPath();
+          ctx.arc(ex, ey, 1.05 * this.scale, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+    }
+
+    // ------------------------------------------------------------------------
+    // 3. HOA VIOLET: Cụm hoa 5 cánh bất đối xứng (2 trên, 2 bên, 1 môi dưới) + lá trái tim
+    // ------------------------------------------------------------------------
+    drawViolet(ctx) {
+      const g = easeOutCubic(this.growth);
+      const leafGrow = easeOutCubic(clamp((this.growth - 0.1) / 0.65, 0, 1));
+
+      // Lá hình trái tim mọc thành cụm ở gốc
+      if (leafGrow > 0) {
+        const leafAngles = [-0.85, -0.3, 0.45, 0.95];
+        for (let i = 0; i < leafAngles.length; i++) {
+          ctx.save();
+          ctx.translate(this.x + (i - 1.5) * 6 * this.scale, this.y - 2);
+          ctx.rotate(leafAngles[i]);
+          const ls = 13 * this.scale * leafGrow;
+          ctx.fillStyle = i % 2 === 0 ? '#1e5c35' : '#2a7542';
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.bezierCurveTo(-ls, -ls * 0.5, -ls * 0.9, -ls * 1.5, 0, -ls * 1.15);
+          ctx.bezierCurveTo(ls * 0.9, -ls * 1.5, ls, -ls * 0.5, 0, 0);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // Vẽ từng bông trong cụm Violet
+      const pal = this.palette;
+      for (let i = 0; i < this.subBlooms.length; i++) {
+        const sb = this.subBlooms[i];
+        const bx = this.headX + sb.dx * g;
+        const by = this.headY + sb.dy * g;
+        const cpx = this.x + (bx - this.x) * 0.5;
+        const cpy = this.y - this.stemHeight * 0.55 * g;
+
+        this.drawStem(ctx, this.x + sb.dx * 0.2, this.y, cpx, cpy, bx, by, 1.9 * this.scale, '#215c36', '#4a9455');
+
+        const localBloom = easeOutBack(clamp((this.bloom - sb.delayOffset * 0.45) / 0.75, 0, 1));
+        if (localBloom <= 0.02) continue;
+
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(sb.tilt + (this.headAngle + Math.PI / 2) * 0.45);
+        const s = this.scale * sb.size * localBloom;
+
+        if (theme.petalGlow > 0) {
+          ctx.shadowColor = pal.edge;
+          ctx.shadowBlur = theme.petalGlow * 0.85 * this.depth;
+        }
+
+        const drawVioletPetal = (x, y, rx, ry, rot, c1, c2) => {
+          ctx.save();
+          ctx.translate(x * s, y * s);
+          ctx.rotate(rot);
+          const pg = ctx.createRadialGradient(0, 0, 1, 0, 0, Math.max(rx, ry) * s);
+          pg.addColorStop(0, c1);
+          pg.addColorStop(0.75, c2);
+          pg.addColorStop(1, pal.edge);
+          ctx.fillStyle = pg;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, rx * s, ry * s, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        };
+
+        // 2 cánh trên xếp chồng nhẹ
+        drawVioletPetal(-5.5, -7.5, 6.8, 8.2, -0.32, pal.upper, pal.side);
+        drawVioletPetal(5.5, -7.5, 6.8, 8.2, 0.32, pal.upper, pal.side);
+        // 2 cánh bên xòe ngang
+        drawVioletPetal(-9.2, 0.5, 7.2, 5.8, -0.18, pal.side, pal.lower);
+        drawVioletPetal(9.2, 0.5, 7.2, 5.8, 0.18, pal.side, pal.lower);
+        // 1 cánh môi dưới lớn hơn
+        drawVioletPetal(0, 7.5, 8.4, 7.8, 0, pal.lower, pal.side);
+
+        // Đường râu tối nhỏ và tâm mắt vàng rực rỡ
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = 'rgba(20, 0, 45, 0.55)';
+        ctx.lineWidth = 0.8 * s;
+        for (let w = -2; w <= 2; w++) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(w * 2.2 * s, (4.5 - Math.abs(w) * 0.6) * s);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = pal.eye;
+        ctx.beginPath();
+        ctx.arc(0, 0.5 * s, 2.7 * s, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // 4. HOA THƯỢC DƯỢC (DAHLIA): Hoa tâm điểm lớn, nhiều tầng cánh xếp theo góc vàng
+    // ------------------------------------------------------------------------
+    drawDahlia(ctx) {
+      const g = easeOutCubic(this.growth);
+
+      // Lá kép có răng cưa dọc thân Thược dược
+      const leafGrow = easeOutCubic(clamp((this.growth - 0.25) / 0.6, 0, 1));
+      if (leafGrow > 0) {
+        const tPositions = [0.35, 0.58];
+        for (let i = 0; i < tPositions.length; i++) {
+          const t = tPositions[i];
+          const lx = quadBezier(this.x, this.cpX, this.headX, t);
+          const ly = quadBezier(this.y, this.cpY, this.headY, t);
+          for (let side = -1; side <= 1; side += 2) {
+            ctx.save();
+            ctx.translate(lx, ly);
+            ctx.rotate(side * (0.7 + i * 0.15));
+            const len = (24 - i * 4) * this.scale * leafGrow;
+            ctx.fillStyle = i === 0 ? '#1d5431' : '#286e3e';
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(side * len * 0.5, -len * 0.35, side * len, -len * 0.1);
+            ctx.quadraticCurveTo(side * len * 0.5, len * 0.28, 0, 0);
+            ctx.fill();
+            ctx.restore();
+          }
+        }
+      }
+
+      // Thân Thược dược cứng cáp
+      this.drawStem(ctx, this.x, this.y, this.cpX, this.cpY, this.headX, this.headY, 4.1 * this.scale, '#1b4f2d', '#438547');
+
+      if (this.bloom <= 0.01) return;
+
+      ctx.save();
+      ctx.translate(this.headX, this.headY);
+      ctx.rotate(this.rotationOffset + (this.headAngle + Math.PI / 2) * 0.35);
+
+      const pal = this.palette;
+      const goldenAngle = 2.39996323; // ~137.5 độ
+
+      if (theme.petalGlow > 0) {
+        ctx.shadowColor = pal.mid;
+        ctx.shadowBlur = theme.petalGlow * 1.1 * this.depth;
+      }
+
+      // Vẽ từ vòng cánh ngoài vào vòng cánh trong, bung nở lần lượt từng lớp
+      for (let i = this.petalCount - 1; i >= 0; i--) {
+        const ratio = i / this.petalCount; // 1 = ngoài cùng, 0 = tâm
+        // Vòng ngoài mở trước, vòng trong mở sau
+        const ringDelay = (1 - ratio) * 0.42;
+        const localOpen = easeOutBack(clamp((this.bloom - ringDelay) / 0.58, 0, 1));
+        if (localOpen <= 0.02) continue;
+
+        const angle = i * goldenAngle;
+        const pLen = this.headRadius * (0.34 + 0.72 * Math.pow(ratio, 0.75)) * localOpen;
+        const pWidth = this.headRadius * (0.14 + 0.13 * ratio) * localOpen;
+
+        ctx.save();
+        ctx.rotate(angle);
+
+        const grad = ctx.createLinearGradient(0, 0, pLen, 0);
+        grad.addColorStop(0, pal.base);
+        grad.addColorStop(0.58, pal.mid);
+        grad.addColorStop(1, pal.tip);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(pLen * 0.48, -pWidth, pLen, 0);
+        ctx.quadraticCurveTo(pLen * 0.48, pWidth, 0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // Viền sáng mảnh ở chóp cánh để các lớp tách biệt rõ nét
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+        ctx.lineWidth = 0.65;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // Nhụy trung tâm lấp lánh
+      const coreOpen = clamp((this.bloom - 0.5) * 2, 0, 1);
+      if (coreOpen > 0) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = pal.center;
+        ctx.fillStyle = pal.center;
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.2 * this.scale * coreOpen, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+    }
+
+    // ------------------------------------------------------------------------
+    // 5. HOA SNOWDROP (GIỌT TUYẾT): Thân mảnh uốn cong rủ xuống, 3 cánh trắng muốt & chuông xanh ngọc
+    // ------------------------------------------------------------------------
+    drawSnowdrop(ctx) {
+      const g = easeOutCubic(this.growth);
+      const b = easeOutCubic(this.bloom);
+      const dir = this.droopDir;
+
+      // 2 lá mảnh màu xanh lam ngọc mọc từ gốc
+      const leafGrow = easeOutCubic(clamp((this.growth - 0.1) / 0.65, 0, 1));
+      if (leafGrow > 0) {
+        for (let side = -1; side <= 1; side += 2) {
+          ctx.strokeStyle = '#3b8c73';
+          ctx.lineWidth = 3.2 * this.scale;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(this.x, this.y);
+          ctx.quadraticCurveTo(
+            this.x + side * 10 * this.scale,
+            this.y - this.stemHeight * 0.42 * leafGrow,
+            this.x + side * 18 * this.scale,
+            this.y - this.stemHeight * 0.62 * leafGrow
+          );
+          ctx.stroke();
+        }
+      }
+
+      // Thân chính uốn cong mềm mại
+      this.drawStem(ctx, this.x, this.y, this.cpX, this.cpY, this.headX, this.headY, 2.0 * this.scale, '#2a6f59', '#61b58d');
+
+      if (this.bloom <= 0.01) return;
+
+      // Phần cổ hoa uốn gập xuống tạo dáng hoa rủ thanh thoát
+      const archX = this.headX + dir * 13 * this.scale * b;
+      const archY = this.headY + 12 * this.scale * b;
+
+      ctx.strokeStyle = '#6ec498';
+      ctx.lineWidth = 1.5 * this.scale;
+      ctx.beginPath();
+      ctx.moveTo(this.headX, this.headY);
+      ctx.quadraticCurveTo(this.headX + dir * 11 * this.scale, this.headY - 7 * this.scale, archX, archY);
+      ctx.stroke();
+
+      // Lá bắc xanh nhỏ (spathe) tại điểm uốn
+      ctx.fillStyle = '#5eb884';
+      ctx.beginPath();
+      ctx.moveTo(this.headX, this.headY);
+      ctx.lineTo(this.headX + dir * 10 * this.scale, this.headY - 12 * this.scale * b);
+      ctx.lineTo(this.headX + dir * 4 * this.scale, this.headY - 2 * this.scale);
+      ctx.closePath();
+      ctx.fill();
+
+      // Bông hoa giọt tuyết rủ xuống, đung đưa nhẹ
+      ctx.save();
+      ctx.translate(archX, archY);
+      const nod = Math.sin(time * 2.4 + this.windPhase) * 0.08 + getWindAt(archX, archY) * 0.05;
+      ctx.rotate(nod - dir * 0.14);
+
+      const s = this.scale * b;
+
+      // Bầu nhụy xanh ngọc nhỏ
+      ctx.fillStyle = '#48a868';
+      ctx.beginPath();
+      ctx.ellipse(0, 1.5 * s, 2.8 * s, 3.8 * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (theme.petalGlow > 0) {
+        ctx.shadowColor = 'rgba(215, 245, 255, 0.9)';
+        ctx.shadowBlur = theme.petalGlow * 0.9 * this.depth;
+      }
+
+      // Chuông nhỏ bên trong với chóp viền xanh ngọc đặc trưng
+      ctx.fillStyle = '#f2fbff';
+      ctx.beginPath();
+      ctx.moveTo(-3.2 * s, 4 * s);
+      ctx.lineTo(-4.4 * s, 14 * s);
+      ctx.quadraticCurveTo(0, 16 * s, 4.4 * s, 14 * s);
+      ctx.lineTo(3.2 * s, 4 * s);
+      ctx.closePath();
+      ctx.fill();
+
+      // Vệt xanh lục bảo hình chữ V ngược ở chóp chuông trong
+      ctx.fillStyle = '#2ecc71';
+      ctx.beginPath();
+      ctx.arc(0, 12.6 * s, 2.4 * s, 0, Math.PI);
+      ctx.fill();
+
+      // 3 cánh ngoài trắng tinh khiết rủ duyên dáng
+      const drawDropPetal = (rot, w, h) => {
+        ctx.save();
+        ctx.rotate(rot);
+        const pg = ctx.createLinearGradient(0, 3 * s, 0, h * s);
+        pg.addColorStop(0, '#dff5ff');
+        pg.addColorStop(0.35, '#ffffff');
+        pg.addColorStop(1, '#eef9ff');
+        ctx.fillStyle = pg;
+        ctx.beginPath();
+        ctx.moveTo(0, 3 * s);
+        ctx.bezierCurveTo(-w * s, 7 * s, -w * 0.85 * s, (h - 2) * s, 0, h * s);
+        ctx.bezierCurveTo(w * 0.85 * s, (h - 2) * s, w * s, 7 * s, 0, 3 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      };
+
+      const openAngle = 0.22 + 0.28 * b;
+      drawDropPetal(-openAngle, 5.4, 21);
+      drawDropPetal(openAngle, 5.4, 21);
+      drawDropPetal(0, 5.0, 22.5);
+
+      ctx.restore();
+    }
+  }
+
+  // ============================================================================
+  // LỚP BƯỚM BAY (BLUE MORPHO, MONARCH, SWALLOWTAIL, VIOLET-WINGED)
+  // ============================================================================
+  const BUTTERFLY_TYPES = [
+    {
+      name: 'morpho',
+      primary: '#00c8ff',
+      secondary: '#0077ff',
+      border: '#0c182e',
+      spots: '#d9f7ff',
+      scale: 1.05
+    },
+    {
+      name: 'monarch',
+      primary: '#ff7b00',
+      secondary: '#ffaa00',
+      border: '#1c120c',
+      spots: '#ffffff',
+      scale: 1.0
+    },
+    {
+      name: 'swallowtail',
+      primary: '#ffe033',
+      secondary: '#ffb703',
+      border: '#211c10',
+      spots: '#72efdd',
+      scale: 1.08
+    },
+    {
+      name: 'violet',
+      primary: '#c77dff',
+      secondary: '#7b2cbf',
+      border: '#1d0d30',
+      spots: '#fff0ff',
+      scale: 0.95
+    }
+  ];
+
+  class Butterfly {
+    constructor() {
+      this.type = pick(BUTTERFLY_TYPES);
+      this.x = rand(W * 0.05, W * 0.95);
+      this.y = rand(H * 0.25, H * 0.72);
+      this.vx = rand(-40, 40);
+      this.vy = rand(-20, 20);
+      this.wingPhase = rand(0, Math.PI * 2);
+      this.flapSpeed = rand(11, 15.5);
+      this.scale = this.type.scale * rand(0.75, 1.12);
+      this.state = 'fly'; // 'fly' | 'approach' | 'perch'
+      this.stateTimer = rand(2, 5);
+      this.targetFlower = null;
+      this.targetX = rand(W * 0.1, W * 0.9);
+      this.targetY = rand(H * 0.22, H * 0.74);
+      this.facing = 1;
+      this.tilt = 0;
+    }
+
+    pickNewTarget() {
+      // 55% cơ hội chọn một bông hoa đã nở để bay tới đậu
+      const bloomed = flowers.filter(f => f.bloom > 0.85 && f.species !== 'snowdrop');
+      if (bloomed.length > 0 && Math.random() < 0.58) {
+        this.targetFlower = pick(bloomed);
+        this.state = 'approach';
+        this.stateTimer = rand(3.5, 6.5);
+      } else {
+        this.targetFlower = null;
+        this.state = 'fly';
+        this.targetX = rand(W * 0.08, W * 0.92);
+        this.targetY = rand(H * 0.18, H * 0.72);
+        this.stateTimer = rand(2.5, 5.0);
+      }
+    }
+
+    update(dt) {
+      this.stateTimer -= dt;
+
+      // Phản ứng giật mình bay tản ra nếu chuột lướt nhanh lại gần
+      if (pointer.activeStrength > 0.1) {
+        const dx = this.x - pointer.x;
+        const dy = this.y - pointer.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 115 && dist > 0.1) {
+          this.state = 'fly';
+          this.targetFlower = null;
+          this.vx += (dx / dist) * 280 * dt;
+          this.vy += (dy / dist) * 240 * dt - 80 * dt;
+          this.stateTimer = rand(1.5, 3.0);
+        }
+      }
+
+      if (this.state === 'perch' && this.targetFlower) {
+        // Đậu nhẹ trên đầu bông hoa và đung đưa cùng hoa
+        this.x = lerp(this.x, this.targetFlower.headX, dt * 8);
+        this.y = lerp(this.y, this.targetFlower.headY - 8 * this.scale, dt * 8);
+        this.wingPhase += dt * 3.6; // Khép mở cánh chậm rãi khi nghỉ
+        this.tilt = lerp(this.tilt, -0.15 * this.facing, dt * 4);
+
+        if (this.stateTimer <= 0 || Math.abs(windState.gust) > 2.2) {
+          this.state = 'fly';
+          this.targetFlower = null;
+          this.vy = rand(-55, -25);
+          this.vx = rand(-50, 50);
+          this.pickNewTarget();
+        }
+        return;
+      }
+
+      // Tính điểm đích hiện tại
+      let tx = this.targetX;
+      let ty = this.targetY;
+      if (this.state === 'approach' && this.targetFlower) {
+        tx = this.targetFlower.headX;
+        ty = this.targetFlower.headY - 10 * this.scale;
+      }
+
+      const dx = tx - this.x;
+      const dy = ty - this.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (this.state === 'approach' && dist < 16) {
+        this.state = 'perch';
+        this.stateTimer = rand(1.8, 4.2);
+        return;
+      }
+
+      if (this.stateTimer <= 0 || (this.state === 'fly' && dist < 35)) {
+        this.pickNewTarget();
+      }
+
+      // Lực lái mượt mà kèm dao động tự nhiên kiểu bướm bay
+      const desiredSpeed = this.state === 'approach' ? clamp(dist * 1.4, 24, 90) : 78;
+      if (dist > 1) {
+        const ax = (dx / dist) * desiredSpeed - this.vx;
+        const ay = (dy / dist) * desiredSpeed - this.vy;
+        this.vx += ax * dt * 2.1;
+        this.vy += ay * dt * 2.1;
+      }
+
+      // Nhấp nhô nhẹ theo nhịp vỗ cánh + gió
+      this.wingPhase += dt * this.flapSpeed;
+      const flapLift = Math.sin(this.wingPhase) * 28;
+      this.vx += getWindAt(this.x, this.y) * 8 * dt;
+      this.vy += flapLift * dt;
+
+      // Giới hạn tốc độ
+      const speed = Math.hypot(this.vx, this.vy);
+      if (speed > 135) {
+        this.vx = (this.vx / speed) * 135;
+        this.vy = (this.vy / speed) * 135;
+      }
+
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+
+      // Giữ bướm trong khung cảnh
+      if (this.x < 20) this.vx += 120 * dt;
+      if (this.x > W - 20) this.vx -= 120 * dt;
+      if (this.y < H * 0.08) this.vy += 120 * dt;
+      if (this.y > H * 0.85) this.vy -= 140 * dt;
+
+      if (Math.abs(this.vx) > 6) {
+        this.facing = this.vx >= 0 ? 1 : -1;
+      }
+      this.tilt = lerp(this.tilt, clamp(this.vy * 0.006, -0.45, 0.45), dt * 5);
+    }
+
+    draw(ctx) {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(this.facing * this.scale, this.scale);
+      ctx.rotate(this.tilt);
+
+      // Hiệu ứng thu gọn 3D khi vỗ cánh (foreshortening)
+      const flap = Math.cos(this.wingPhase);
+      const wingScaleX = 0.22 + 0.78 * Math.abs(flap);
+      const wingLiftY = flap * 4;
+
+      const t = this.type;
+
+      if (theme.petalGlow > 0) {
+        ctx.shadowColor = t.primary;
+        ctx.shadowBlur = theme.petalGlow * 0.7;
+      }
+
+      const drawWingPair = (isFarWing) => {
+        ctx.save();
+        const depthMul = isFarWing ? 0.82 : 1.0;
+        ctx.scale(wingScaleX * depthMul, depthMul);
+        ctx.translate(0, isFarWing ? -wingLiftY * 0.6 : wingLiftY * 0.4);
+        if (isFarWing) ctx.globalAlpha *= 0.75;
+
+        // Cánh trên (forewing)
+        const gradTop = ctx.createLinearGradient(0, 0, -20, -18);
+        gradTop.addColorStop(0, t.secondary);
+        gradTop.addColorStop(0.7, t.primary);
+        gradTop.addColorStop(1, t.border);
+
+        ctx.fillStyle = gradTop;
+        ctx.beginPath();
+        ctx.moveTo(0, -1);
+        ctx.bezierCurveTo(-6, -18, -24, -20, -21, -6);
+        ctx.bezierCurveTo(-19, 0, -8, 2, 0, 1);
+        ctx.closePath();
+        ctx.fill();
+
+        // Viền đen và gân cánh
+        ctx.strokeStyle = t.border;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Cánh dưới (hindwing)
+        const gradBot = ctx.createLinearGradient(0, 0, -15, 14);
+        gradBot.addColorStop(0, t.secondary);
+        gradBot.addColorStop(0.75, t.primary);
+        gradBot.addColorStop(1, t.border);
+
+        ctx.fillStyle = gradBot;
+        ctx.beginPath();
+        ctx.moveTo(0, 1);
+        ctx.bezierCurveTo(-16, 1, -18, 12, -8, 13);
+        ctx.bezierCurveTo(-3, 13, -1, 7, 0, 3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Chấm sáng trang trí trên mép cánh
+        ctx.fillStyle = t.spots;
+        ctx.beginPath();
+        ctx.arc(-15, -10, 1.3, 0, Math.PI * 2);
+        ctx.arc(-17, -6, 1.0, 0, Math.PI * 2);
+        ctx.arc(-10, 9, 1.1, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      };
+
+      // Cánh xa -> Thân -> Cánh gần
+      drawWingPair(true);
+
+      // Thân bướm và râu mảnh
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#18141c';
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 1.7, 7.5, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(30, 25, 35, 0.85)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(1, -5);
+      ctx.quadraticCurveTo(5, -11, 8, -10);
+      ctx.moveTo(1, -5);
+      ctx.quadraticCurveTo(3, -12, 6, -13);
+      ctx.stroke();
+
+      drawWingPair(false);
+
+      ctx.restore();
+    }
+  }
+
+  // ============================================================================
+  // KHỞI TẠO TOÀN BỘ KHU RỪNG HOA
+  // ============================================================================
+  function generateGarden() {
+    flowers = [];
+    floatingSeeds = [];
+    plantRipples = [];
+
+    // Phân bổ mật độ hoa dựa trên chiều rộng màn hình (từ 42 đến 68 bông hoa chính)
+    const totalFlowers = clamp(Math.floor(W / 24), 40, 68);
+    const speciesPool = ['tulip', 'tulip', 'dandelion', 'dandelion', 'dahlia', 'violet', 'violet', 'snowdrop', 'snowdrop'];
+
+    // Chia thành các cột đều có độ lệch ngẫu nhiên để trải kín toàn màn hình không bị trống
+    for (let i = 0; i < totalFlowers; i++) {
+      const colRatio = (i + rand(0.12, 0.88)) / totalFlowers;
+      const x = colRatio * (W + 40) - 20;
+      const depth = Math.random(); // 0 = hậu cảnh, 1 = tiền cảnh
+      const y = lerp(H * 0.67, H * 1.01, Math.pow(depth, 0.88));
+
+      // Chọn loài phù hợp độ sâu (hoa thấp như violet & snowdrop ưu tiên trung/tiền cảnh để nổi bật)
+      let species = pick(speciesPool);
+      if (depth > 0.72 && Math.random() < 0.45) {
+        species = pick(['violet', 'snowdrop', 'dandelion']);
+      } else if (depth < 0.35 && Math.random() < 0.5) {
+        species = pick(['tulip', 'dahlia', 'dandelion']);
+      }
+
+      // Nở theo làn sóng hữu cơ từ giữa/trái lan dần ra
+      const waveDelay = rand(0.1, 2.8) + Math.abs(colRatio - 0.5) * 1.4;
+
+      flowers.push(new Flower({
+        species,
+        x,
+        y,
+        depth,
+        delay: waveDelay
+      }));
+    }
+
+    // Sắp xếp theo chiều sâu (y nhỏ vẽ trước, y lớn vẽ sau)
+    flowers.sort((a, b) => a.y - b.y);
+
+    // Khởi tạo đàn bướm 8-10 con
+    butterflies = [];
+    const bCount = W < 640 ? 7 : 10;
+    for (let i = 0; i < bCount; i++) {
+      butterflies.push(new Butterfly());
+    }
+  }
+
+  // Trồng thêm 1 bông hoa ngay tại điểm người dùng click
+  function plantFlowerAt(x, y) {
+    const clampedY = clamp(y, H * 0.64, H * 1.0);
+    const depth = clamp((clampedY - H * 0.64) / (H * 0.36), 0.08, 1.0);
+    const species = pick(['tulip', 'dandelion', 'violet', 'dahlia', 'snowdrop']);
+
+    const newFlower = new Flower({
+      species,
+      x,
+      y: clampedY,
+      depth,
+      delay: 0
+    });
+    flowers.push(newFlower);
+    flowers.sort((a, b) => a.y - b.y);
+
+    // Giới hạn số lượng hoa tối đa để luôn giữ 60fps
+    if (flowers.length > 98) {
+      flowers.shift();
+    }
+
+    // Vòng sáng lấp lánh tại điểm gieo hạt
+    plantRipples.push({ x, y: clampedY, r: 4, alpha: 0.9 });
+  }
+
+  // ============================================================================
+  // HÀM VẼ CẢNH NỀN, ĐỒI, CỎ, HOA DẠI & ĐOM ĐÓM
+  // ============================================================================
+  function drawSkyAndAtmosphere() {
+    // 1. Bầu trời gradient
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.72);
+    skyGrad.addColorStop(0, theme.sky[0]);
+    skyGrad.addColorStop(0.38, theme.sky[1]);
+    skyGrad.addColorStop(0.72, theme.sky[2]);
+    skyGrad.addColorStop(1, theme.sky[3]);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // 2. Các vì sao lấp lánh (nếu có)
+    if (theme.starsAlpha > 0) {
+      for (let i = 0; i < stars.length; i++) {
+        const st = stars[i];
+        const twinkle = 0.45 + 0.55 * Math.sin(time * st.speed + st.phase);
+        ctx.fillStyle = `rgba(255, 252, 240, ${theme.starsAlpha * twinkle})`;
+        ctx.beginPath();
+        ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 3. Mặt trăng / Mặt trời + quầng sáng
+    const cel = theme.celestial;
+    const cx = W * cel.x;
+    const cy = H * cel.y;
+    const glowR = cel.r * 4.5;
+    const halo = ctx.createRadialGradient(cx, cy, cel.r * 0.3, cx, cy, glowR);
+    halo.addColorStop(0, cel.glow);
+    halo.addColorStop(0.45, cel.glow.replace(/[\d.]+\)$/, '0.1)'));
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = cel.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cel.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 4. Các dãy đồi mềm mại xa gần tạo chiều sâu không gian khu vườn
+    const drawHill = (baseY, amp1, freq1, phase1, amp2, freq2, color) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W + 24; x += 24) {
+        const y = baseY + Math.sin(x * freq1 + phase1) * amp1 + Math.cos(x * freq2) * amp2;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fill();
+    };
+
+    drawHill(H * 0.63, H * 0.045, 0.0022, 0.4, H * 0.02, 0.005, theme.hills[0]);
+
+    // Lớp sương mù nhẹ giữa các đồi
+    const mist1 = ctx.createLinearGradient(0, H * 0.54, 0, H * 0.72);
+    mist1.addColorStop(0, 'rgba(255,255,255,0)');
+    mist1.addColorStop(0.6, theme.mistColor);
+    mist1.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = mist1;
+    ctx.fillRect(0, H * 0.54, W, H * 0.18);
+
+    drawHill(H * 0.67, H * 0.032, 0.0028, 2.2, H * 0.015, 0.006, theme.hills[1]);
+    drawHill(H * 0.71, H * 0.022, 0.0035, 4.1, H * 0.012, 0.007, theme.hills[2]);
+
+    // 5. Nền đất thảm cỏ khu vườn
+    const groundGrad = ctx.createLinearGradient(0, H * 0.68, 0, H);
+    groundGrad.addColorStop(0, theme.groundGrad[0]);
+    groundGrad.addColorStop(0.5, theme.groundGrad[1]);
+    groundGrad.addColorStop(1, theme.groundGrad[2]);
+    ctx.fillStyle = groundGrad;
+    ctx.fillRect(0, H * 0.70, W, H * 0.30);
+  }
+
+  function drawBgWildflowers() {
+    ctx.save();
+    for (let i = 0; i < bgWildflowers.length; i++) {
+      const wf = bgWildflowers[i];
+      const wind = getWindAt(wf.x, wf.y - wf.height) * 9;
+      const tipX = wf.x + wind;
+      const tipY = wf.y - wf.height;
+
+      // Cọng mảnh mờ
+      ctx.strokeStyle = 'rgba(55, 115, 72, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(wf.x, wf.y);
+      ctx.quadraticCurveTo(wf.x + wind * 0.4, wf.y - wf.height * 0.5, tipX, tipY);
+      ctx.stroke();
+
+      // Hoa oải hương nhỏ hoặc đốm bokeh hoa dại xa
+      ctx.fillStyle = wf.color;
+      ctx.globalAlpha = 0.42;
+      if (wf.isLavender) {
+        for (let b = 0; b < wf.budCount; b++) {
+          const t = 0.62 + (b / wf.budCount) * 0.38;
+          const bx = lerp(wf.x, tipX, t);
+          const by = lerp(wf.y, tipY, t);
+          ctx.beginPath();
+          ctx.arc(bx + (b % 2 === 0 ? -1.8 : 1.8), by, 2.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, wf.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawGrassLayer(blades, palette) {
+    for (let i = 0; i < blades.length; i++) {
+      const b = blades[i];
+      const wind = getWindAt(b.x, b.y - b.height) * (b.layer === 'front' ? 14 : b.layer === 'mid' ? 10 : 7);
+      const tipX = b.x + b.lean * b.height + wind;
+      const tipY = b.y - b.height + Math.abs(wind) * 0.18;
+
+      ctx.fillStyle = palette[b.colorIdx];
+      ctx.beginPath();
+      ctx.moveTo(b.x - b.width * 0.5, b.y);
+      ctx.quadraticCurveTo(
+        b.x + (tipX - b.x) * 0.35 - b.width * 0.2,
+        b.y - b.height * 0.55,
+        tipX,
+        tipY
+      );
+      ctx.quadraticCurveTo(
+        b.x + (tipX - b.x) * 0.45 + b.width * 0.3,
+        b.y - b.height * 0.55,
+        b.x + b.width * 0.5,
+        b.y
+      );
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function updateAndDrawMotes(dt) {
+    for (let i = 0; i < motes.length; i++) {
+      const m = motes[i];
+      const wind = getWindAt(m.x, m.y);
+      m.x += (m.vx + wind * 18) * dt * m.depth;
+      m.y += (m.vy + Math.sin(time * 1.4 + m.phase) * 10) * dt * m.depth;
+
+      if (m.x > W + 20) m.x = -20;
+      if (m.x < -20) m.x = W + 20;
+      if (m.y < H * 0.1) m.y = H * 0.92;
+      if (m.y > H * 0.98) m.y = H * 0.25;
+
+      const pulse = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(time * m.blinkSpeed + m.phase));
+      const radius = m.r * (theme.moteMode === 'firefly' ? 1.15 : 0.9);
+
+      const g = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, radius * 4.2);
+      g.addColorStop(0, theme.moteCore);
+      g.addColorStop(0.3, theme.moteColor);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+
+      ctx.save();
+      ctx.globalAlpha = pulse * (theme.moteMode === 'firefly' ? 0.85 : 0.58);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, radius * 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function updateAndDrawWindRibbons(dt) {
+    for (let i = windState.ribbons.length - 1; i >= 0; i--) {
+      const r = windState.ribbons[i];
+      r.life += dt;
+      r.x += r.vx * dt;
+      if (r.life >= r.maxLife || r.x - r.length > W + 100) {
+        windState.ribbons.splice(i, 1);
+        continue;
+      }
+
+      const alpha = Math.sin((r.life / r.maxLife) * Math.PI);
+      ctx.save();
+      ctx.strokeStyle = theme.windRibbon;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      const segs = 16;
+      for (let s = 0; s <= segs; s++) {
+        const px = r.x - (s / segs) * r.length;
+        const py = r.y + Math.sin(px * r.freq + r.phase) * r.amp;
+        if (s === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  function updateAndDrawRipples(dt) {
+    for (let i = plantRipples.length - 1; i >= 0; i--) {
+      const rp = plantRipples[i];
+      rp.r += dt * 42;
+      rp.alpha -= dt * 1.4;
+      if (rp.alpha <= 0) {
+        plantRipples.splice(i, 1);
+        continue;
+      }
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 250, 210, ${rp.alpha})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.ellipse(rp.x, rp.y, rp.r, rp.r * 0.35, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // ============================================================================
+  // VÒNG LẶP CHÍNH (60FPS)
+  // ============================================================================
+  function animate(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.05);
+    lastTimestamp = timestamp;
+    time += dt;
+
+    // Cập nhật gió tự nhiên và cơn gió thoảng định kỳ
+    windState.base = Math.sin(time * 0.32) * 0.35;
+    windState.nextNaturalGust -= dt;
+    if (windState.nextNaturalGust <= 0) {
+      triggerWindGust(rand(2.2, 3.4));
+      windState.nextNaturalGust = rand(8.5, 14.5);
+    }
+
+    windState.gust = lerp(windState.gust, windState.gustTarget, dt * 2.5);
+    windState.gustTarget = lerp(windState.gustTarget, 0, dt * 1.15);
+
+    // Giảm dần lực vuốt chuột
+    pointer.vx = lerp(pointer.vx, 0, dt * 6);
+    pointer.vy = lerp(pointer.vy, 0, dt * 6);
+    pointer.activeStrength = lerp(pointer.activeStrength, pointer.isDown ? 1 : 0, dt * 4);
+
+    // 1. Vẽ bầu trời, mặt trăng/trời, đồi & mặt đất
+    drawSkyAndAtmosphere();
+
+    // 2. Lớp hoa dại hậu cảnh & cỏ nền xa
+    drawBgWildflowers();
+    drawGrassLayer(grassLayers.back, theme.grassBack);
+
+    // 3. Cập nhật & vẽ các bông hoa hậu cảnh + trung cảnh (xen kẽ lớp cỏ giữa)
+    const midSplitY = H * 0.84;
+    let midGrassDrawn = false;
+
+    for (let i = 0; i < flowers.length; i++) {
+      const fl = flowers[i];
+      fl.update(dt);
+
+      if (!midGrassDrawn && fl.y > midSplitY) {
+        drawGrassLayer(grassLayers.mid, theme.grassMid);
+        midGrassDrawn = true;
+      }
+      fl.draw(ctx);
+    }
+    if (!midGrassDrawn) {
+      drawGrassLayer(grassLayers.mid, theme.grassMid);
+    }
+
+    // 4. Vòng sáng khi trồng hoa
+    updateAndDrawRipples(dt);
+
+    // 5. Lớp cỏ tiền cảnh sát mép dưới màn hình
+    drawGrassLayer(grassLayers.front, theme.grassFront);
+
+    // 6. Hạt bồ công anh bay tự do trong gió
+    for (let i = floatingSeeds.length - 1; i >= 0; i--) {
+      const seed = floatingSeeds[i];
+      seed.update(dt);
+      if (seed.isDead()) {
+        floatingSeeds.splice(i, 1);
+      } else {
+        seed.draw(ctx);
+      }
+    }
+
+    // 7. Đàn bướm bay lượn & đậu hoa
+    for (let i = 0; i < butterflies.length; i++) {
+      butterflies[i].update(dt);
+      butterflies[i].draw(ctx);
+    }
+
+    // 8. Đom đóm / phấn hoa lơ lửng & dải gió mềm mại
+    updateAndDrawMotes(dt);
+    updateAndDrawWindRibbons(dt);
+
+    requestAnimationFrame(animate);
+  }
+
+  // ============================================================================
+  // XỬ LÝ RESIZE & TƯƠNG TÁC CHUỘT / CẢM ỨNG / THANH CÔNG CỤ
+  // ============================================================================
+  function handleResize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    initStars();
+    initMotes();
+    initGrassAndWildflowers();
+    generateGarden();
+  }
+
+  function setupInteractions() {
+    const onPointerDown = (x, y) => {
+      pointer.isDown = true;
+      pointer.x = x;
+      pointer.y = y;
+      pointer.lastX = x;
+      pointer.lastY = y;
+      pointer.dragDistance = 0;
+      pointer.activeStrength = 1;
+    };
+
+    const onPointerMove = (x, y) => {
+      const dx = x - pointer.lastX;
+      const dy = y - pointer.lastY;
+      pointer.vx = dx * 28;
+      pointer.vy = dy * 28;
+      pointer.x = x;
+      pointer.y = y;
+      pointer.lastX = x;
+      pointer.lastY = y;
+      pointer.activeStrength = 1;
+      if (pointer.isDown) {
+        pointer.dragDistance += Math.hypot(dx, dy);
+      }
+    };
+
+    const onPointerUp = (x, y) => {
+      // Nếu là chạm/click (không phải vuốt kéo dài) trong vùng thảm cỏ -> trồng thêm hoa mới
+      if (pointer.dragDistance < 14 && y > H * 0.42) {
+        plantFlowerAt(x, Math.max(y, H * 0.65));
+      }
+      pointer.isDown = false;
+    };
+
+    canvas.addEventListener('mousedown', (e) => onPointerDown(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => onPointerMove(e.clientX, e.clientY));
+    window.addEventListener('mouseup', (e) => {
+      if (pointer.isDown) onPointerUp(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        onPointerDown(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        const t = e.touches[0];
+        onPointerMove(t.clientX, t.clientY);
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length > 0) {
+        const t = e.changedTouches[0];
+        onPointerUp(t.clientX, t.clientY);
+      }
+    });
+
+    // Nút Thổi gió
+    document.getElementById('btnWind').addEventListener('click', () => {
+      triggerWindGust(4.6);
+    });
+
+    // Nút Gieo vườn mới
+    document.getElementById('btnRegrow').addEventListener('click', () => {
+      generateGarden();
+    });
+
+    // Chuyển chế độ ánh sáng
+    const themeBtns = document.querySelectorAll('.theme-group .btn');
+    themeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.getAttribute('data-theme');
+        if (!THEMES[key]) return;
+        currentThemeKey = key;
+        theme = THEMES[key];
+        themeBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    // Ẩn / hiện thanh công cụ
+    const toolbar = document.getElementById('toolbar');
+    const toggleBtn = document.getElementById('btnToggleBar');
+    const toggleIcon = document.getElementById('toggleIcon');
+    toggleBtn.addEventListener('click', () => {
+      const collapsed = toolbar.classList.toggle('collapsed');
+      toggleIcon.style.transform = collapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+      toggleIcon.style.transition = 'transform 0.25s ease';
+    });
+
+    // Tự động làm mờ gợi ý sau 7 giây
+    setTimeout(() => {
+      const hint = document.getElementById('hintPill');
+      if (hint) hint.classList.add('fade-out');
+    }, 7000);
+  }
+
+  // Khởi chạy toàn bộ ứng dụng khi trang tải xong
+  window.onload = function () {
+    handleResize();
+    setupInteractions();
+    window.addEventListener('resize', handleResize);
+    requestAnimationFrame(animate);
+  };
+})();
+</script>
+</body>
+</html>
